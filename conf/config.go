@@ -13,9 +13,17 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+// 全局MySQL 客户端实例
 var (
-	db *sql.DB
+	config *Config
+	db     *sql.DB
 )
+
+// 要想获取配置, 单独提供函数
+// 全局Config对象获取函数
+func C() *Config {
+	return config
+}
 
 // Config 应用配置
 type Config struct {
@@ -130,7 +138,7 @@ func (m *mysql) getDBConnection() (*sql.DB, error) {
 	return db, nil
 }
 
-func (m *mysql) getDB() (*sql.DB, error) {
+func (m *mysql) GetDB() *sql.DB {
 	// 加载全局数据库实例
 
 	m.lock.Lock()
@@ -138,12 +146,12 @@ func (m *mysql) getDB() (*sql.DB, error) {
 	if db == nil {
 		db, err := m.getDBConnection()
 		if err != nil {
-			return nil, fmt.Errorf("get db<%s> error", err.Error())
+			panic(err.Error())
 		}
-		return db, nil
+		return db
 	}
 
-	return db, nil
+	return db
 }
 
 type log struct {
@@ -208,7 +216,6 @@ func (l *log) newDefaultLogger() *zap.Logger {
 	filed := zap.Fields(zap.String("serviceName", "serviceName"))
 	// 构造日志
 	logger := zap.New(core, caller, development, filed)
-
 	logger.Info("log 初始化成功",
 		zap.String("当前日志级别为", l.Level),
 	)
@@ -216,6 +223,6 @@ func (l *log) newDefaultLogger() *zap.Logger {
 	// 	zap.String("url", "http://www.baidu.com"),
 	// 	zap.Int("attempt", 3),
 	// 	zap.Duration("backoff", time.Second))
-
+	zap.ReplaceGlobals(logger)
 	return logger
 }

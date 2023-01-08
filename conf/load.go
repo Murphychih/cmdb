@@ -10,7 +10,7 @@ var (
 )
 
 // C 全局配置对象
-func C() *Config {
+func loadGloabal() *Config {
 	if global == nil {
 		panic("Load Config first")
 	}
