@@ -154,7 +154,7 @@ type DescribeHostRequest struct {
 }
 
 
-func NewDescribeHostRequesttWithId(id string) *DescribeHostRequest{
+func NewDescribeHostRequestWithId(id string) *DescribeHostRequest{
 	return &DescribeHostRequest{
 		Id: id,
 	}

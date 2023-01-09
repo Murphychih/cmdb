@@ -73,3 +73,94 @@ func (i *HostService) save(ctx context.Context, ins *host.Host) error {
 
 	return nil
 }
+
+func (i *HostService) update(ctx context.Context, ins *host.Host) error {
+
+	var err error
+
+	tx, err := i.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// 通过Defer处理事务提交方式
+	// 1. 无报错，则Commit 事务
+	// 2. 有报错, 则Rollback 事务
+	defer func() {
+		if err != nil {
+			if err = tx.Rollback(); err != nil {
+				i.l.Error("rollback transaction failed",
+					zap.String("error", err.Error()))
+			}
+		} else {
+			if err = tx.Commit(); err != nil {
+				i.l.Error("commit transaction failed",
+					zap.String("error", err.Error()))
+			}
+		}
+	}()
+
+	// 更新resource表
+	rstmt, err := tx.PrepareContext(ctx, updateResourceSQL)
+	if err != nil {
+		return err
+	}
+	_, err = rstmt.ExecContext(ctx, ins.Vendor, ins.Region, ins.ExpireAt, ins.Name, ins.Description, ins.Id)
+	if err != nil {
+		return err
+	}
+	defer rstmt.Close()
+
+	// 更新describe表
+	dstmt, err := tx.PrepareContext(ctx, updateHostSQL)
+	if err != nil {
+		return err
+	}
+	_, err = dstmt.ExecContext(ctx, ins.CPU, ins.Memory, ins.Id)
+	if err != nil {
+		return err
+	}
+	defer dstmt.Close()
+
+	return nil
+}
+
+func (i *HostService) delete(ctx context.Context, ins *host.Host) error {
+	var err error
+
+	tx, err := i.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	// 通过Defer处理事务提交方式
+	// 1. 无报错，则Commit 事务
+	// 2. 有报错, 则Rollback 事务
+	defer func() {
+		if err != nil {
+			if err = tx.Rollback(); err != nil {
+				i.l.Error("rollback transaction failed",
+					zap.String("error", err.Error()))
+			}
+		} else {
+			if err = tx.Commit(); err != nil {
+				i.l.Error("commit transaction failed",
+					zap.String("error", err.Error()))
+			}
+		}
+	}()
+
+	// 删除resource表
+	stmt, err := tx.PrepareContext(ctx, DeleteHostSQL)
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.ExecContext(ctx, ins.Id)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	return nil
+}
