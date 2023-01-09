@@ -69,3 +69,34 @@ type GinService interface {
 	Name() string
 	Registry(r gin.IRouter)
 }
+
+func RegistryGin(svc GinService){
+	// 服务注册到svc map当中
+	if _, ok := ginApps[svc.Name()];ok{
+		panic(fmt.Sprintf("service %s has registried", svc.Name()))
+	}
+
+	ginApps[svc.Name()] = svc
+}
+
+// 已经加载完成的Gin App有哪些
+func LoadedGinApps() (names []string) {
+	for k := range ginApps {
+		names = append(names, k)
+	}
+
+	return names
+}
+
+// 用户初始化 注册到Ioc容器里面的所有服务
+func InitGin(r gin.IRouter) {
+	// 先初始化好所有对象
+	for _, v := range ginApps {
+		v.Config()
+	}
+
+	// 完成Http Handler的注册
+	for _, v := range ginApps {
+		v.Registry(r)
+	}
+}

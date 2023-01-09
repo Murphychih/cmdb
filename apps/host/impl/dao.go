@@ -125,7 +125,7 @@ func (i *HostService) update(ctx context.Context, ins *host.Host) error {
 	return nil
 }
 
-func (i *HostService) delete(ctx context.Context, ins *host.Host) error {
+func (i *HostService) delete(ctx context.Context, id string) error {
 	var err error
 
 	tx, err := i.db.BeginTx(ctx, nil)
@@ -156,7 +156,7 @@ func (i *HostService) delete(ctx context.Context, ins *host.Host) error {
 		return err
 	}
 
-	_, err = stmt.ExecContext(ctx, ins.Id)
+	_, err = stmt.ExecContext(ctx, id)
 	if err != nil {
 		return err
 	}

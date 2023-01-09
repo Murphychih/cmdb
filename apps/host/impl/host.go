@@ -159,7 +159,8 @@ func (i *HostService) DeleteHost(ctx context.Context, req *host.DeleteHostReques
 		return nil, err
 	}
 
-	err = i.delete(ctx, ins)
+	del_ins := host.NewDeleteHostRequest(req.Id)
+	err = i.delete(ctx, del_ins.Id)
 	if err != nil {
 		return nil, err
 	}

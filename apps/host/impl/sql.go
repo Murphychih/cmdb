@@ -43,6 +43,6 @@ const (
 
 	updateResourceSQL = `UPDATE resource SET vendor=?,region=?,expire_at=?,name=?,description=? WHERE id = ?`
 	updateHostSQL     = `UPDATE host SET cpu=?,memory=? WHERE resource_id = ?`
-	
-	DeleteHostSQL     = `Delete FROM resource WHERE resource_id = ?`
+
+	DeleteHostSQL = `Delete FROM resource WHERE id = ?`
 )

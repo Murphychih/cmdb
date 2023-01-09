@@ -10,7 +10,7 @@ var (
 )
 
 // C 全局配置对象
-func loadGloabal() *Config {
+func LoadGloabal() *Config {
 	if global == nil {
 		panic("Load Config first")
 	}
@@ -19,7 +19,7 @@ func loadGloabal() *Config {
 
 // LoadConfigFromToml 从toml中添加配置文件, 并初始化全局对象
 func LoadConfigFromToml(filePath string) error {
-	cfg := newConfig()
+	cfg := NewConfig()
 	if _, err := toml.DecodeFile(filePath, cfg); err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func LoadConfigFromToml(filePath string) error {
 
 // LoadConfigFromEnv 从环境变量中加载配置
 func LoadConfigFromEnv() error {
-	cfg := newConfig()
+	cfg := NewConfig()
 	if err := env.Parse(cfg); err != nil {
 		return err
 	}

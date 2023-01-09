@@ -13,6 +13,10 @@ type Handler struct {
 	svc host.Service
 }
 
+func NewHandler() *Handler {
+	return &Handler{}
+}
+
 func (h *Handler) Config() {
 	// 从IOC中获取HostService的实例对象
 	apps.GetImpl(host.AppName)
@@ -30,4 +34,8 @@ func (h *Handler) Registry(r gin.IRouter) {
 	r.PUT("/hosts/:id", h.putHost)
 	r.PATCH("/hosts/:id", h.patchHost)
 	r.DELETE("/hosts/:id", h.deleteHost)
+}
+
+func init() {
+	apps.RegistryGin(NewHandler())
 }
