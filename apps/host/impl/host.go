@@ -10,7 +10,7 @@ import (
 
 // 网络服务业务处理层（controller层）
 
-// 录入主机
+// 录入主机 与数据库的交互
 func (i *HostService) CreateHost(ctx context.Context, ins *host.Host) (*host.Host, error) {
 	// 首先校验数据合法性
 	if err := ins.Validate(); err != nil {

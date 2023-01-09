@@ -1,0 +1,5 @@
+{"level":"info","time":"2023-01-09T22:05:14.797+0800","caller":"C:/Users/59804/Desktop/GO/cmdb/conf/config.go:220","msg":"log 初始化成功","serviceName":"serviceName","当前日志级别为":"debug"}
+{"level":"info","time":"2023-01-09T22:05:14.799+0800","logger":"HTTP Service","caller":"C:/Users/59804/Desktop/GO/cmdb/protocol/http.go:49","msg":"loaded gin apps: []","serviceName":"serviceName"}
+{"level":"info","time":"2023-01-09T22:05:41.487+0800","logger":"CLI","caller":"C:/Users/59804/Desktop/GO/cmdb/cmd/start.go:74","msg":"received signal: interrupt","serviceName":"serviceName"}
+{"level":"info","time":"2023-01-09T22:05:41.487+0800","logger":"HTTP Service","caller":"C:/Users/59804/Desktop/GO/cmdb/protocol/http.go:65","msg":"start to shut down HttpService","serviceName":"serviceName"}
+{"level":"info","time":"2023-01-09T22:05:41.488+0800","logger":"HTTP Service","caller":"C:/Users/59804/Desktop/GO/cmdb/protocol/http.go:55","msg":"service stopped successfully","serviceName":"serviceName"}

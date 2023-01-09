@@ -6,7 +6,6 @@ import (
 	"github.com/Murphychih/cmdb/apps/host"
 	"github.com/Murphychih/cmdb/apps/host/impl"
 	"github.com/Murphychih/cmdb/conf"
-	"github.com/infraboard/mcube/logger/zap"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -87,9 +86,6 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	// 需要初始化全局Logger,
-	// 为什么不设计为默认打印, 因为性能
-	fmt.Println(zap.DevelopmentSetup())
 
 	// host service 的具体实现
 	service = impl.NewHostSerivice()

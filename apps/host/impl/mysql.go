@@ -38,7 +38,7 @@ func NewHostSerivice() *HostService {
 func (i *HostService) Config() {
 	// 初始化HostService
 	i.l = zap.L().Named("Host")
-	i.db = conf.C().MySQL.GetDB()
+	i.db = conf.LoadGloabal().MySQL.GetDB()
 }
 
 func (i *HostService) Name() string {

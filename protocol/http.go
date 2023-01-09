@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// 该模块意在优雅的启动服务以及关闭服务
+// 该模块旨在优雅的启动服务以及关闭服务
 
 type HttpService struct {
 	server *http.Server
@@ -29,7 +29,7 @@ func NewHttpService() *HttpService {
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    1 << 20, // 1M
-		Addr:              conf.C().App.HTTP.GetAddr(),
+		Addr:              conf.LoadGloabal().App.HTTP.GetAddr(),
 		Handler:           r,
 	}
 

@@ -22,9 +22,9 @@ var (
 
 // 要想获取配置, 单独提供函数
 // 全局Config对象获取函数
-func C() *Config {
-	return config
-}
+// func C() *Config {
+// 	return config
+// }
 
 // Config 应用配置
 type Config struct {
@@ -175,7 +175,7 @@ func newDefaultLog() *log {
 	}
 }
 
-func (l *log) newDefaultLogger() *zap.Logger {
+func (l *log) LoadGloabalLogger()  {
 
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "time",
@@ -225,5 +225,4 @@ func (l *log) newDefaultLogger() *zap.Logger {
 	// 	zap.Int("attempt", 3),
 	// 	zap.Duration("backoff", time.Second))
 	zap.ReplaceGlobals(logger)
-	return logger
 }
