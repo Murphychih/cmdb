@@ -214,9 +214,9 @@ func (l *log) LoadGloabalLogger()  {
 	// 开启文件及行号
 	development := zap.Development()
 	// 设置初始化字段
-	filed := zap.Fields(zap.String("serviceName", "serviceName"))
+	// filed := zap.Fields(zap.String("serviceName", "serviceName"))
 	// 构造日志
-	logger := zap.New(core, caller, development, filed)
+	logger := zap.New(core, caller, development)
 	logger.Info("log 初始化成功",
 		zap.String("当前日志级别为", l.Level),
 	)
