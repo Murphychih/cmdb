@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package common.request;
+option go_package = "github.com/Murphychih/cmdb/common/pb/request";
+
+enum UpdateMode {
+    PUT = 0;
+    PATCH = 1;
+}

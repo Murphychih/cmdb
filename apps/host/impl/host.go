@@ -2,169 +2,187 @@ package impl
 
 import (
 	"context"
-	"fmt"
+	"database/sql"
 
 	"github.com/Murphychih/cmdb/apps/host"
+	"github.com/Murphychih/cmdb/apps/resource/impl"
+	"github.com/Murphychih/cmdb/common/response/exception"
 	"github.com/infraboard/mcube/sqlbuilder"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-// 网络服务业务处理层（controller层）
-
-// 录入主机 与数据库的交互
-func (i *HostService) CreateHost(ctx context.Context, ins *host.Host) (*host.Host, error) {
-	// 首先校验数据合法性
-	if err := ins.Validate(); err != nil {
-		return nil, err
+func (s *service) SyncHost(ctx context.Context, ins *host.Host) (
+	*host.Host, error) {
+	exist, err := s.DescribeHost(ctx, host.NewDescribeHostRequestWithID(ins.Base.Id))
+	if err != nil {
+		// 如果不是Not Found则直接返回
+		if !exception.IsNotFoundError(err) {
+			return nil, err
+		}
 	}
 
-	// 默认值填充
-	ins.InjectDefault()
+	// 检查ins已经存在 我们则需要更新ins
+	if exist != nil {
+		s.log.Sugar().Debugf("update host: %s", ins.Base.Id)
+		exist.Put(host.NewUpdateHostDataByIns(ins))
+		if err := s.update(ctx, exist); err != nil {
+			return nil, err
+		}
+		return ins, nil
+	}
 
-	// 由dao.go模块负责将对象入库
-	if err := i.save(ctx, ins); err != nil {
+	// 如果没有我们则直接保存
+	s.log.Sugar().Debugf("insert host: %s", ins.Base.Id)
+	if err := s.save(ctx, ins); err != nil {
 		return nil, err
 	}
 
 	return ins, nil
 }
 
-// 查询主机列表
-func (i *HostService) QueryHost(ctx context.Context, req *host.QueryHostRequest) (*host.HostSet, error) {
-	b := sqlbuilder.NewBuilder(QueryHostSQL)
+func (s *service) QueryHost(ctx context.Context, req *host.QueryHostRequest) (
+	*host.HostSet, error) {
+	query := sqlbuilder.NewQuery(queryHostSQL)
+
 	if req.Keywords != "" {
-		b.Where("r.`name`LIKE ? OR r.description LIKE ? OR r.private_ip LIKE ? OR r.public_ip LIKE ?",
+		query.Where("r.name LIKE ? OR r.id = ? OR r.instance_id = ? OR r.private_ip LIKE ? OR r.public_ip LIKE ?",
 			"%"+req.Keywords+"%",
-			"%"+req.Keywords+"%",
+			req.Keywords,
+			req.Keywords,
 			req.Keywords+"%",
 			req.Keywords+"%",
 		)
 	}
 
-	b.Limit(req.OffSet(), req.GetPageSize())
-	querySQL, args := b.Build()
-	i.l.Sugar().Debugf("query sql: %s, args: %v", querySQL, args)
-
-	stmt, err := i.db.PrepareContext(ctx, querySQL)
-	if err != nil {
-		return nil, err
-	}
-	defer stmt.Close()
-
 	set := host.NewHostSet()
-	rows, err := stmt.QueryContext(ctx, args...)
+
+	// 获取total SELECT COUNT(*) FROMT t Where ....
+	countSQL, args := query.BuildFromNewBase(countHostSQL)
+	countStmt, err := s.db.PrepareContext(ctx, countSQL)
+	s.log.Sugar().Debugf("count sql: %s", countSQL)
+	if err != nil {
+		return nil, exception.NewInternalServerError(err.Error())
+	}
+
+	defer countStmt.Close()
+	err = countStmt.QueryRowContext(ctx, args...).Scan(&set.Total)
+	if err != nil {
+		return nil, exception.NewInternalServerError(err.Error())
+	}
+
+	// 获取分页数据
+	querySQL, args := query.
+		GroupBy("r.id").
+		Order("r.sync_at").
+		Desc().
+		Limit(req.Page.ComputeOffset(), uint(req.Page.PageSize)).
+		BuildQuery()
+	s.log.Sugar().Debugf("query sql: %s", querySQL)
+
+	queryStmt, err := s.db.PrepareContext(ctx, querySQL)
+	if err != nil {
+		return nil, exception.NewInternalServerError("prepare query host error, %s", err.Error())
+	}
+	defer queryStmt.Close()
+
+	rows, err := queryStmt.QueryContext(ctx, args...)
+	if err != nil {
+		return nil, exception.NewInternalServerError(err.Error())
+	}
+	defer rows.Close()
+
+	var (
+		publicIPList, privateIPList, keyPairNameList, securityGroupsList string
+	)
 	for rows.Next() {
-		// 每扫描一行,就需要读取出来
-		// h.cpu, h.memory, h.gpu_spec, h.gpu_amount, h.os_type, h.os_name, h.serial_number
-		ins := host.NewHost()
-		if err := rows.Scan(
-			&ins.Id, &ins.Vendor, &ins.Region, &ins.CreateAt, &ins.ExpireAt,
-			&ins.Type, &ins.Name, &ins.Description, &ins.Status, &ins.UpdateAt, &ins.SyncAt,
-			&ins.Account, &ins.PublicIP, &ins.PrivateIP,
-			&ins.CPU, &ins.Memory, &ins.GPUSpec, &ins.GPUAmount, &ins.OSType, &ins.OSName, &ins.SerialNumber,
-		); err != nil {
-			return nil, err
+		ins := host.NewDefaultHost()
+		base := ins.Base
+		info := ins.Information
+		desc := ins.Describe
+		err := rows.Scan(
+			&base.Id, &base.ResourceType, &base.Vendor, &base.Region, &base.Zone, &base.CreateAt, &info.ExpireAt,
+			&info.Category, &info.Type, &info.Name, &info.Description,
+			&info.Status, &info.UpdateAt, &base.SyncAt, &info.SyncAccount,
+			&publicIPList, &privateIPList, &info.PayType, &base.DescribeHash, &base.ResourceHash,
+			&base.SecretId, &base.Domain, &base.Namespace, &base.Env, &base.UsageMode, &base.Id,
+			&desc.Cpu, &desc.Memory, &desc.GpuAmount, &desc.GpuSpec, &desc.OsType, &desc.OsName,
+			&desc.SerialNumber, &desc.ImageId, &desc.InternetMaxBandwidthOut, &desc.InternetMaxBandwidthIn,
+			&keyPairNameList, &securityGroupsList,
+		)
+		if err != nil {
+			return nil, exception.NewInternalServerError("query host error, %s", err.Error())
 		}
+		info.LoadPrivateIPString(privateIPList)
+		info.LoadPublicIPString(publicIPList)
+
+		desc.LoadKeyPairNameString(keyPairNameList)
+		desc.LoadSecurityGroupsString(securityGroupsList)
 		set.Add(ins)
 	}
 
-	// total统计
-	countSQL, args := b.BuildCount()
-	i.l.Sugar().Debugf("count sql: %s, args: %v", countSQL, args)
-	countStmt, err := i.db.PrepareContext(ctx, countSQL)
+	tags, err := impl.QueryTag(ctx, s.db, set.ResourceIds())
 	if err != nil {
 		return nil, err
 	}
-	defer countStmt.Close()
-	// 返回一行
-	if err := countStmt.QueryRowContext(ctx, args...).Scan(&set.Total); err != nil {
-		return nil, err
-	}
+	set.UpdateTag(tags)
 
 	return set, nil
-
 }
 
-// 查询主机详情
-func (i *HostService) DescribeHost(ctx context.Context, req *host.DescribeHostRequest) (*host.Host, error) {
-	b := sqlbuilder.NewBuilder(QueryHostSQL)
-	b.Where("r.id = ?", req.Id)
+// 以resource表为准 连接了2张表:   resource_host + resource_tag
+func (s *service) DescribeHost(ctx context.Context, req *host.DescribeHostRequest) (
+	*host.Host, error) {
+	query := sqlbuilder.NewQuery(queryHostSQL).GroupBy("r.id")
+	cond, val := req.Where()
+	querySQL, args := query.Where(cond, val).BuildQuery()
+	s.log.Sugar().Debugf("sql: %s", querySQL)
 
-	querySQL, args := b.Build()
-
-	stmt, err := i.db.PrepareContext(ctx, querySQL)
+	queryStmt, err := s.db.PrepareContext(ctx, querySQL)
 	if err != nil {
-		return nil, err
+		return nil, exception.NewInternalServerError("prepare describe host error, %s", err.Error())
 	}
+	defer queryStmt.Close()
 
-	defer stmt.Close()
-
-	ins := host.NewHost()
-	err = stmt.QueryRowContext(ctx, args...).Scan(&ins.Id, &ins.Vendor, &ins.Region, &ins.CreateAt, &ins.ExpireAt,
-		&ins.Type, &ins.Name, &ins.Description, &ins.Status, &ins.UpdateAt, &ins.SyncAt,
-		&ins.Account, &ins.PublicIP, &ins.PrivateIP,
-		&ins.CPU, &ins.Memory, &ins.GPUSpec, &ins.GPUAmount, &ins.OSType, &ins.OSName, &ins.SerialNumber,
+	ins := host.NewDefaultHost()
+	var (
+		publicIPList, privateIPList, keyPairNameList, securityGroupsList string
 	)
+	base := ins.Base
+	info := ins.Information
+	desc := ins.Describe
+	err = queryStmt.QueryRowContext(ctx, args...).Scan(
+		&base.Id, &base.ResourceType, &base.Vendor, &base.Region, &base.Zone, &base.CreateAt, &info.ExpireAt,
+		&info.Category, &info.Type, &info.Name, &info.Description,
+		&info.Status, &info.UpdateAt, &base.SyncAt, &info.SyncAccount,
+		&publicIPList, &privateIPList, &info.PayType, &base.DescribeHash, &base.ResourceHash,
+		&base.SecretId, &base.Domain, &base.Namespace, &base.Env, &base.UsageMode, &base.Id,
+		&desc.Cpu, &desc.Memory, &desc.GpuAmount, &desc.GpuSpec, &desc.OsType, &desc.OsName,
+		&desc.SerialNumber, &desc.ImageId, &desc.InternetMaxBandwidthOut, &desc.InternetMaxBandwidthIn,
+		&keyPairNameList, &securityGroupsList,
+	)
+
 	if err != nil {
-		return nil, err
+		if err == sql.ErrNoRows {
+			return nil, exception.NewNotFound("%#v not found", req)
+		}
+		return nil, exception.NewInternalServerError("describe host error, %s", err.Error())
 	}
+
+	info.LoadPrivateIPString(privateIPList)
+	info.LoadPublicIPString(publicIPList)
+	desc.LoadKeyPairNameString(keyPairNameList)
+	desc.LoadSecurityGroupsString(securityGroupsList)
 
 	return ins, nil
 }
 
-// 主机更新
-func (i *HostService) UpdateHost(ctx context.Context, req *host.UpdateHostRequest) (*host.Host, error) {
-	// 获取已有对象
-	ins, err := i.DescribeHost(ctx, host.NewDescribeHostRequestWithId(req.Id))
-	if err != nil {
-		return nil, err
-	}
-
-	//根据更新的模式进行更新对象
-	switch req.UpdateMode {
-	case host.UPDATE_MODE_PATCH:
-		// 全局更新
-		if err := ins.Patch(req.Host); err != nil {
-			return nil, err
-		}
-	case host.UPDATE_MODE_PUT:
-		// 局部更新
-		if err := ins.Put(req.Host); err != nil {
-			return nil, err
-		}
-	default:
-		return nil, fmt.Errorf("update mode only required for put/patch")
-
-	}
-
-	// 进行更新后的数据校验
-	if err := ins.Validate(); err != nil {
-		return nil, err
-	}
-
-	// 数据入库
-	if err := i.update(ctx, ins); err != nil {
-		return nil, err
-	}
-
-	return ins, nil
-
+func (s *service) UpdateHost(ctx context.Context, req *host.UpdateHostRequest) (
+	*host.Host, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateHost not implemented")
 }
 
-// 主机删除 如前端需要 打印当前删除主机的Ip或者其他信息
-func (i *HostService) DeleteHost(ctx context.Context, req *host.DeleteHostRequest) (*host.Host, error) {
-
-	// 获取需删除对象
-	ins, err := i.DescribeHost(ctx, host.NewDescribeHostRequestWithId(req.Id))
-	if err != nil {
-		return nil, err
-	}
-
-	del_ins := host.NewDeleteHostRequest(req.Id)
-	err = i.delete(ctx, del_ins.Id)
-	if err != nil {
-		return nil, err
-	}
-
-	return ins, nil
-
+func (s *service) ReleaseHost(ctx context.Context, req *host.ReleaseHostRequest) (
+	*host.Host, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ReleaseHost not implemented")
 }

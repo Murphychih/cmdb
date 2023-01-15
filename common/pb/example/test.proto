@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package common.example;
+option go_package = "github.com/Murphychih/cmdb/common/pb/example";
+
+enum FOO {
+    X = 0;
+}
+
+message Test {
+    string label = 1;
+    int32 type = 2;
+    int64 reps = 3;
+}

@@ -2,165 +2,180 @@ package impl
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/Murphychih/cmdb/apps/host"
-	"go.uber.org/zap"
+	"github.com/Murphychih/cmdb/apps/resource/impl"
 )
 
-// 该文件负责完成对象和数据库之间的转换
-// 把Host对象保存到数据内 维持数据的一致性
-
-func (i *HostService) save(ctx context.Context, ins *host.Host) error {
-	var err error
-
-	// 数据需同时入库两张表
-	// 此处使用事务维护数据一致性
-	tx, err := i.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("start transaction <%s> failed", err)
+func (s *service) save(ctx context.Context, h *host.Host) error {
+	if h.Base.SyncAt != 0 {
+		h.Base.SyncAt = time.Now().UnixMilli()
 	}
 
-	// 通过Defer处理事务提交方式
-	// 1. 无报错，则Commit 事务
-	// 2. 有报错, 则Rollback 事务
-	defer func() {
-		if err != nil {
-			if err = tx.Rollback(); err != nil {
-				i.l.Error("rollback transaction failed",
-					zap.String("error", err.Error()))
-			}
-		} else {
-			if err = tx.Commit(); err != nil {
-				i.l.Error("commit transaction failed",
-					zap.String("error", err.Error()))
-			}
-		}
-	}()
-
-	// 插入Resource表数据
-	rstmt, err := tx.PrepareContext(ctx, InsertResourceSQL)
-	if err != nil {
-		return err
-	}
-	defer rstmt.Close()
-
-	_, err = rstmt.ExecContext(ctx,
-		ins.Id, ins.Vendor, ins.Region, ins.CreateAt, ins.ExpireAt, ins.Type,
-		ins.Name, ins.Description, ins.Status, ins.UpdateAt, ins.SyncAt, ins.Account, ins.PublicIP,
-		ins.PrivateIP,
+	var (
+		stmt *sql.Stmt
+		err  error
 	)
 
+	// 开启一个事物
+	// 文档请参考: http://cngolib.com/database-sql.html#db-begintx
+	// 关于事物级别可以参考文章: https://zhuanlan.zhihu.com/p/117476959
+	// wiki: https://en.wikipedia.org/wiki/Isolation_(database_systems)#Isolation_levels
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	// 插入Describe数据
-	dstmt, err := tx.PrepareContext(ctx, InsertDescribeSQL)
+	// 执行结果提交或者回滚事务
+	// 当使用sql.Tx的操作方式操作数据后，需要我们使用sql.Tx的Commit()方法显式地提交事务，
+	// 如果出错，则可以使用sql.Tx中的Rollback()方法回滚事务，保持数据的一致性
+	defer func() {
+		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				s.log.Sugar().Errorf("rollback error, %s", err)
+			}
+		} else {
+			if err := tx.Commit(); err != nil {
+				s.log.Sugar().Errorf("commit error, %s", err)
+			}
+		}
+	}()
+
+	// 生成描写信息的Hash，分别计算 Resource Inforamtion Hash和Descirbe(host独有属性)的Hash
+	// 有专门把一个对象--> bash库 ,没选择这种做
+	// 把对象--> json(string) --> hash(string)---> 对象
+	if err := h.GenHash(); err != nil {
+		return err
+	}
+
+	// 保存资源基础信息(公共信息)
+	err = impl.SaveResource(ctx, tx, h.Base, h.Information)
 	if err != nil {
 		return err
 	}
-	defer dstmt.Close()
 
-	_, err = dstmt.ExecContext(ctx,
-		ins.Id, ins.CPU, ins.Memory, ins.GPUAmount, ins.GPUSpec,
-		ins.OSType, ins.OSName, ins.SerialNumber,
+	// 避免SQL注入, 请使用Prepare
+	stmt, err = tx.PrepareContext(ctx, insertHostSQL)
+	if err != nil {
+		return fmt.Errorf("prepare insert host sql error, %s", err)
+	}
+	defer stmt.Close()
+
+	desc := h.Describe
+	_, err = stmt.ExecContext(ctx,
+		h.Base.Id, desc.Cpu, desc.Memory, desc.GpuAmount, desc.GpuSpec, desc.OsType, desc.OsName,
+		desc.SerialNumber, desc.ImageId, desc.InternetMaxBandwidthOut,
+		desc.InternetMaxBandwidthIn, desc.KeyPairNameToString(), desc.SecurityGroupsToString(),
+	)
+	if err != nil {
+		return fmt.Errorf("save host resource describe error, %s", err)
+	}
+
+	return err
+}
+
+func (s *service) update(ctx context.Context, ins *host.Host) error {
+	var (
+		stmt *sql.Stmt
+		err  error
 	)
 
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("start tx error, %s", err)
 	}
 
-	return nil
-}
-
-func (i *HostService) update(ctx context.Context, ins *host.Host) error {
-
-	var err error
-
-	tx, err := i.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-
-	// 通过Defer处理事务提交方式
-	// 1. 无报错，则Commit 事务
-	// 2. 有报错, 则Rollback 事务
 	defer func() {
 		if err != nil {
-			if err = tx.Rollback(); err != nil {
-				i.l.Error("rollback transaction failed",
-					zap.String("error", err.Error()))
-			}
+			tx.Rollback()
+			return
 		} else {
-			if err = tx.Commit(); err != nil {
-				i.l.Error("commit transaction failed",
-					zap.String("error", err.Error()))
+			if err := tx.Commit(); err != nil {
+				s.log.Sugar().Errorf("commit error, %s", err)
 			}
 		}
 	}()
 
-	// 更新resource表
-	rstmt, err := tx.PrepareContext(ctx, updateResourceSQL)
-	if err != nil {
-		return err
+	// 更新资源基本信息
+	if ins.Base.ResourceHashChanged {
+		if err := impl.UpdateResource(ctx, tx, ins.Base, ins.Information); err != nil {
+			return err
+		}
+	} else {
+		s.log.Debug("resource data hash not changed, needn't update")
 	}
-	_, err = rstmt.ExecContext(ctx, ins.Vendor, ins.Region, ins.ExpireAt, ins.Name, ins.Description, ins.Id)
-	if err != nil {
-		return err
-	}
-	defer rstmt.Close()
 
-	// 更新describe表
-	dstmt, err := tx.PrepareContext(ctx, updateHostSQL)
-	if err != nil {
-		return err
-	}
-	_, err = dstmt.ExecContext(ctx, ins.CPU, ins.Memory, ins.Id)
-	if err != nil {
-		return err
-	}
-	defer dstmt.Close()
+	// 更新实例信息
+	if ins.Base.DescribeHashChanged {
+		stmt, err = tx.PrepareContext(ctx, updateHostSQL)
+		if err != nil {
+			return fmt.Errorf("prepare update host sql error, %s", err)
+		}
+		defer stmt.Close()
 
-	return nil
+		base := ins.Base
+		desc := ins.Describe
+		_, err = stmt.ExecContext(ctx,
+			desc.Cpu, desc.Memory, desc.GpuAmount, desc.GpuSpec, desc.OsType, desc.OsName,
+			desc.ImageId, desc.InternetMaxBandwidthOut,
+			desc.InternetMaxBandwidthIn, desc.KeyPairNameToString(), desc.SecurityGroupsToString(),
+			base.Id,
+		)
+		if err != nil {
+			return err
+		}
+	} else {
+		s.log.Debug("describe data hash not changed, needn't update")
+	}
+
+	return err
 }
 
-func (i *HostService) delete(ctx context.Context, id string) error {
-	var err error
+func (s *service) delete(ctx context.Context, req *host.ReleaseHostRequest) error {
+	var (
+		stmt *sql.Stmt
+		err  error
+	)
 
-	tx, err := i.db.BeginTx(ctx, nil)
+	// 开启一个事物
+	// 文档请参考: http://cngolib.com/database-sql.html#db-begintx
+	// 关于事物级别可以参考文章: https://zhuanlan.zhihu.com/p/117476959
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 
-	// 通过Defer处理事务提交方式
-	// 1. 无报错，则Commit 事务
-	// 2. 有报错, 则Rollback 事务
+	// 执行结果提交或者回滚事务
+	// 当使用sql.Tx的操作方式操作数据后，需要我们使用sql.Tx的Commit()方法显式地提交事务，
+	// 如果出错，则可以使用sql.Tx中的Rollback()方法回滚事务，保持数据的一致性
 	defer func() {
 		if err != nil {
-			if err = tx.Rollback(); err != nil {
-				i.l.Error("rollback transaction failed",
-					zap.String("error", err.Error()))
-			}
+			tx.Rollback()
+			return
 		} else {
-			if err = tx.Commit(); err != nil {
-				i.l.Error("commit transaction failed",
-					zap.String("error", err.Error()))
+			if err := tx.Commit(); err != nil {
+				s.log.Sugar().Errorf("commit error, %s", err)
 			}
 		}
 	}()
 
-	// 删除resource表
-	stmt, err := tx.PrepareContext(ctx, DeleteHostSQL)
-	if err != nil {
-		return err
-	}
-
-	_, err = stmt.ExecContext(ctx, id)
+	stmt, err = tx.PrepareContext(ctx, deleteHostSQL)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	return nil
+	_, err = stmt.ExecContext(ctx, req.Id)
+	if err != nil {
+		return err
+	}
+
+	if err := impl.DeleteResource(ctx, tx, req.Id); err != nil {
+		return err
+	}
+
+	return err
 }
