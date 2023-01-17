@@ -4,10 +4,10 @@ import (
 	"github.com/Murphychih/cmdb/apps"
 	"github.com/Murphychih/cmdb/apps/secret"
 	"github.com/Murphychih/cmdb/common/response"
-	
-	"github.com/infraboard/mcube/http/label"
+
 	restfulspec "github.com/emicklei/go-restful-openapi"
 	"github.com/emicklei/go-restful/v3"
+	"github.com/infraboard/mcube/http/label"
 	"go.uber.org/zap"
 )
 
@@ -20,10 +20,12 @@ type handler struct {
 	log     *zap.Logger
 }
 
-func (h *handler) Config()  {
+func (h *handler) Config() error{
 	h.log = zap.L().Named(secret.AppName)
 	h.service = apps.GetGrpcApp(secret.AppName).(secret.ServiceServer)
-}
+
+	return nil
+} 
 
 func (h *handler) Name() string {
 	return secret.AppName

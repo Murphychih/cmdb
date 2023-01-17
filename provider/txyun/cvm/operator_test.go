@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/Murphychih/cmdb/apps/host"
 	"github.com/Murphychih/cmdb/provider/txyun/connectivity"
 	"github.com/Murphychih/cmdb/provider/txyun/cvm"
 	tx_cvm "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm/v20170312"
@@ -30,28 +31,28 @@ func TestQuery(t *testing.T) {
 	t.Log(set)
 }
 
-// func TestPaggerQuery(t *testing.T) {
-// 	p := cvm.NewPagger(5, op)
-// 	for p.Next() {
-// 		set := host.NewHostSet()
-// 		if err := p.Scan(context.Background(), set); err != nil {
-// 			panic(err)
-// 		}
-// 		t.Log("page query result: ", set)
-// 	}
-// }
+func TestPaggerQuery(t *testing.T) {
+	p := cvm.NewPagger(5, op)
+	for p.Next() {
+		set := host.NewHostSet()
+		if err := p.Scan(context.Background(), set); err != nil {
+			panic(err)
+		}
+		t.Log("page query result: ", set)
+	}
+}
 
-// func TestPagerV2Query(t *testing.T) {
-// 	p := cvm.NewPagerV2(op)
+func TestPagerV2Query(t *testing.T) {
+	p := cvm.NewPagerV2(op)
 
-// 	for p.Next() {
-// 		set := host.NewHostSet()
-// 		if err := p.Scan(context.Background(), set); err != nil {
-// 			panic(err)
-// 		}
-// 		t.Log("page query result: ", set)
-// 	}
-// }
+	for p.Next() {
+		set := host.NewHostSet()
+		if err := p.Scan(context.Background(), set); err != nil {
+			panic(err)
+		}
+		t.Log("page query result: ", set)
+	}
+}
 
 func init() {
 	//  初始化client

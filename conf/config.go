@@ -14,11 +14,9 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-
 const (
 	CIPHER_TEXT_PREFIX = "@ciphered@"
 )
-
 
 // 全局MySQL 客户端实例
 var (
@@ -48,18 +46,18 @@ func NewConfig() *Config {
 }
 
 type app struct {
-	Name string `toml:"name" env:"APP_NAME"`
+	Name       string `toml:"name" env:"APP_NAME"`
 	EncryptKey string `toml:"encrypt_key" env:"APP_ENCRYPT_KEY"`
-	HTTP *http  `toml:"http"`
-	GRPC *grpc  `toml:"grpc"`
+	HTTP       *http  `toml:"http"`
+	GRPC       *grpc  `toml:"grpc"`
 }
 
 func newDefaultAPP() *app {
 	return &app{
-		Name: "cmdb",
+		Name:       "cmdb",
 		EncryptKey: "defualt app encrypt key",
-		HTTP: newDefaultHttp(),
-		GRPC: newDefaultGrpc(),
+		HTTP:       newDefaultHttp(),
+		GRPC:       newDefaultGrpc(),
 	}
 }
 
@@ -82,6 +80,9 @@ func newDefaultHttp() *http {
 type grpc struct {
 	Host string `toml:"host" env:"GRPC_HOST"`
 	Port string `toml:"port" env:"GRPC_PORT"`
+	EnableSSL bool   `toml:"enable_ssl" env:"GRPC_ENABLE_SSL"`
+	CertFile  string `toml:"cert_file" env:"GRPC_CERT_FILE"`
+	KeyFile   string `toml:"key_file" env:"GRPC_KEY_FILE"`
 }
 
 func (g *grpc) GetAddr() string {

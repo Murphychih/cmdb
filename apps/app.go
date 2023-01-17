@@ -16,60 +16,77 @@ var (
 
 	// 该文件主要维护当前所有的服务的实例
 	// implApps = map[string]ImplService{}
-	ginApps     = map[string]GinService{}
-	grpcApps    = map[string]GRPCApp{}
-	restfulApps = map[string]RESTfulApp{}
+	ginApps      = map[string]GinService{}
+	grpcApps     = map[string]GRPCApp{}
+	restfulApps  = map[string]RESTfulApp{}
+	internalApps = map[string]InternalApp{}
 )
 
 // IOC 容器层: 管理所有的服务的实例
+func InitAllApp() error {
+	// 优先初始化内部app
+	for _, api := range internalApps {
+		if err := api.Config(); err != nil {
+			return err
+		}
+	}
+
+	for _, api := range grpcApps {
+		api.Config()
+	}
+
+	for _, api := range restfulApps {
+		api.Config()
+	}
+
+	for _, api := range ginApps {
+		api.Config()
+	}
+
+	return nil
+}
 
 // 1. HostService的实例必须注册过来, HostService才会有具体的实例, 服务启动时注册
 // 2. HTTP 暴露模块, 依赖Ioc里面的HostService
 
-// type ImplService interface {
-// 	Config()
-// 	Name() string
-// }
+// InternalApp 内部服务实例, 不需要暴露
+type InternalApp interface {
+	Config() error
+	Name() string
+}
 
-// func RegistryImpl(svc ImplService) {
-// 	if _, ok := implApps[svc.Name()]; ok {
-// 		panic(fmt.Sprintf("service <%s> has been registered"))
-// 	}
+// RegistryInternalApp 服务实例注册
+func RegistryInternalApp(app InternalApp) {
+	// 已经注册的服务禁止再次注册
+	_, ok := internalApps[app.Name()]
+	if ok {
+		panic(fmt.Sprintf("internal app %s has registed", app.Name()))
+	}
 
-// 	implApps[svc.Name()] = svc
+	internalApps[app.Name()] = app
+}
 
-// 	// 根据对象实现不同的网络服务接口
-// 	if v, ok := svc.(host.Service); ok {
-// 		HostService = v
-// 	}
-// }
+// LoadedInternalApp 查询加载成功的服务
+func LoadedInternalApp() (apps []string) {
+	for k := range internalApps {
+		apps = append(apps, k)
+	}
+	return
+}
 
-// 如果指定了具体类型, 就导致没增加一种类型, 多一个Get方法
-// func GetHostImpl(name string) host.Service
+func GetInternalApp(name string) InternalApp {
+	app, ok := internalApps[name]
+	if !ok {
+		panic(fmt.Sprintf("internal app %s not registed", name))
+	}
 
-// Get 一个Impl服务的实例：implApps
-// 返回一个对象, 任何类型都可以, 使用时, 由使用方进行断言
-// func GetImpl(name string) interface{} {
-// 	for k, v := range implApps {
-// 		if k == name {
-// 			return v
-// 		}
-// 	}
-
-// 	return nil
-// }
-
-// 用户初始化 注册到Ioc容器里面的所有服务
-// func InitImpl() {
-// 	for _, v := range implApps {
-// 		v.Config()
-// 	}
-// }
+	return app
+}
 
 // 注册Gin编写的Handler
 // 比如 编写了Http服务A, 只需要实现Registry方法, 就能把Handler注册给Root Router
 type GinService interface {
-	Config()
+	Config() error
 	Name() string
 	Registry(r gin.IRouter)
 }
@@ -106,7 +123,7 @@ func InitGin(r gin.IRouter) {
 }
 
 type GRPCApp interface {
-	Config()
+	Config() error
 	Name() string
 	Registry(*grpc.Server)
 }
@@ -149,7 +166,7 @@ func LoadGrpcApp(server *grpc.Server) {
 // HTTPService Http服务的实例
 type RESTfulApp interface {
 	Registry(*restful.WebService)
-	Config()
+	Config() error
 	Name() string
 	Version() string
 }

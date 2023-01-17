@@ -32,7 +32,7 @@ var StartCmd = &cobra.Command{
 		global.Log.LoadGloabalLogger()
 
 		// 加载当前所有app实例
-		apps.InitImpl()
+		apps.InitAllApp()
 
 		// 获取HTTP服务管理
 		manager := newManager()
@@ -41,7 +41,7 @@ var StartCmd = &cobra.Command{
 		defer close(ch)
 
 		signal.Notify(ch, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGHUP, syscall.SIGINT)
-		go manager.WaitStop(ch)
+		go manager.WaitSignal(ch)
 
 		return manager.start()
 	},
@@ -52,22 +52,30 @@ var StartCmd = &cobra.Command{
 // 2. HTTP服务的关闭
 type manager struct {
 	http *protocol.HttpService
-	l    zap.Logger
+	grpc *protocol.GRPCService
+	l    *zap.Logger
 }
 
 func newManager() *manager {
 	return &manager{
 		http: protocol.NewHttpService(),
-		l:    *zap.L().Named("CLI"),
+		grpc: protocol.NewGRPCService(),
+		l:    zap.L().Named("CLI"),
 	}
 }
 
 func (m *manager) start() error {
+	m.l.Sugar().Infof("loaded grpc app: %s", apps.LoadedGrpcApp())
+	m.l.Sugar().Infof("loaded http app: %s", apps.LoadedRESTfulApp())
+
+	m.l.Sugar().Infof("loaded internal app: %s", apps.LoadedInternalApp())
+
+	go m.grpc.Start()
 	return m.http.StartHttpService()
 }
 
 // 处理来自外部的中断信号
-func (m *manager) WaitStop(ch <-chan os.Signal) {
+func (m *manager) WaitSignal(ch <-chan os.Signal) {
 	for v := range ch {
 		switch v {
 		default:
@@ -78,6 +86,6 @@ func (m *manager) WaitStop(ch <-chan os.Signal) {
 }
 
 func init() {
-	StartCmd.PersistentFlags().StringVarP(&confFile, "config", "f", "etc/demo.toml", "cmdb API配置文件路径")
+	StartCmd.PersistentFlags().StringVarP(&confFile, "config", "f", "etc/config.toml", "cmdb API配置文件路径")
 	RootCmd.AddCommand(StartCmd)
 }

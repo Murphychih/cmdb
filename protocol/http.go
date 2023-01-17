@@ -46,7 +46,7 @@ func (s *HttpService) StartHttpService() error {
 
 	// 已加载App的日志信息
 	apps := apps.LoadedGinApps()
-	s.l.Sugar().Infof("loaded gin apps: %v", apps)
+	s.l.Sugar().Infof("loaded gin apps: %s", apps)
 
 	// 启动服务
 	// 若服务正常关闭则打印日志

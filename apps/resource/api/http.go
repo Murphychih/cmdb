@@ -19,9 +19,11 @@ type handler struct {
 	log     *zap.Logger
 }
 
-func (h *handler) Config() {
+func (h *handler) Config() error{
 	h.log = zap.L().Named(resource.AppName)
 	h.service = apps.GetGrpcApp(resource.AppName).(resource.ServiceServer)
+
+	return nil
 }
 
 func (h *handler) Name() string {

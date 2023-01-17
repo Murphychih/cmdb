@@ -2,26 +2,19 @@
 name = "cmdb-demo"
 key  = "this is your app key"
 
-[http]
+[app.http]
 host = "127.0.0.1"
-port = "8840"
+port = "8060"
 
-[grpc]
+[app.grpc]
 host = "127.0.0.1"
-port = "18840"
-
-
-[keyauth]
-host = "127.0.0.1"
-port = "18050"
-client_id = "demo"
-client_secret = "demo"
+port = "18060"
 
 
 [mysql]
 host = "127.0.0.1"
 port = "3306"
-database = "test"
+database = "go_course"
 username = "root"
 password = "Murphy"
 

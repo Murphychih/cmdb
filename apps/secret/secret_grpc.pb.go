@@ -38,7 +38,7 @@ func NewServiceClient(cc grpc.ClientConnInterface) ServiceClient {
 
 func (c *serviceClient) CreateSecret(ctx context.Context, in *CreateSecretRequest, opts ...grpc.CallOption) (*Secret, error) {
 	out := new(Secret)
-	err := c.cc.Invoke(ctx, "/course.cmdb.secret.Service/CreateSecret", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/cmdb.secret.Service/CreateSecret", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (c *serviceClient) CreateSecret(ctx context.Context, in *CreateSecretReques
 
 func (c *serviceClient) QuerySecret(ctx context.Context, in *QuerySecretRequest, opts ...grpc.CallOption) (*SecretSet, error) {
 	out := new(SecretSet)
-	err := c.cc.Invoke(ctx, "/course.cmdb.secret.Service/QuerySecret", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/cmdb.secret.Service/QuerySecret", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (c *serviceClient) QuerySecret(ctx context.Context, in *QuerySecretRequest,
 
 func (c *serviceClient) DescribeSecret(ctx context.Context, in *DescribeSecretRequest, opts ...grpc.CallOption) (*Secret, error) {
 	out := new(Secret)
-	err := c.cc.Invoke(ctx, "/course.cmdb.secret.Service/DescribeSecret", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/cmdb.secret.Service/DescribeSecret", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (c *serviceClient) DescribeSecret(ctx context.Context, in *DescribeSecretRe
 
 func (c *serviceClient) DeleteSecret(ctx context.Context, in *DeleteSecretRequest, opts ...grpc.CallOption) (*Secret, error) {
 	out := new(Secret)
-	err := c.cc.Invoke(ctx, "/course.cmdb.secret.Service/DeleteSecret", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/cmdb.secret.Service/DeleteSecret", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func _Service_CreateSecret_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/course.cmdb.secret.Service/CreateSecret",
+		FullMethod: "/cmdb.secret.Service/CreateSecret",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).CreateSecret(ctx, req.(*CreateSecretRequest))
@@ -140,7 +140,7 @@ func _Service_QuerySecret_Handler(srv interface{}, ctx context.Context, dec func
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/course.cmdb.secret.Service/QuerySecret",
+		FullMethod: "/cmdb.secret.Service/QuerySecret",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).QuerySecret(ctx, req.(*QuerySecretRequest))
@@ -158,7 +158,7 @@ func _Service_DescribeSecret_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/course.cmdb.secret.Service/DescribeSecret",
+		FullMethod: "/cmdb.secret.Service/DescribeSecret",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).DescribeSecret(ctx, req.(*DescribeSecretRequest))
@@ -176,7 +176,7 @@ func _Service_DeleteSecret_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/course.cmdb.secret.Service/DeleteSecret",
+		FullMethod: "/cmdb.secret.Service/DeleteSecret",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ServiceServer).DeleteSecret(ctx, req.(*DeleteSecretRequest))
@@ -188,7 +188,7 @@ func _Service_DeleteSecret_Handler(srv interface{}, ctx context.Context, dec fun
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Service_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "course.cmdb.secret.Service",
+	ServiceName: "cmdb.secret.Service",
 	HandlerType: (*ServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

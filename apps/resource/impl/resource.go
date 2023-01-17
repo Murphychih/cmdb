@@ -38,11 +38,11 @@ func (s *Service) Search(ctx context.Context, req *resource.SearchRequest) (*res
 
 	return set, nil
 }
-func (s *Service)QueryTag(ctx context.Context, req *resource.QueryTagRequest) (*resource.TagSet, error) {
+func (s *Service) QueryTag(ctx context.Context, req *resource.QueryTagRequest) (*resource.TagSet, error) {
 
 	return nil, nil
 }
-func (s *Service)UpdateTag(ctx context.Context, req *resource.UpdateTagRequest) (*resource.Resource, error) {
+func (s *Service) UpdateTag(ctx context.Context, req *resource.UpdateTagRequest) (*resource.Resource, error) {
 
 	return nil, nil
 }

@@ -22,10 +22,12 @@ type service struct {
 	host.UnimplementedServiceServer
 }
 
-func (s *service) Config() {
+func (s *service) Config() error{
 	db := conf.LoadGloabal().MySQL.GetDB()
 	s.log = zap.L().Named(s.Name())
 	s.db = db
+
+	return nil
 }
 
 func (s *service) Name() string {

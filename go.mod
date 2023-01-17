@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/emicklei/go-restful-openapi v1.4.1
 	github.com/emicklei/go-restful/v3 v3.10.1
+	github.com/go-playground/validator/v10 v10.11.1
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/infraboard/mcube v1.9.6
 	github.com/spf13/cobra v1.6.1
@@ -24,7 +25,6 @@ require (
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
-	github.com/go-playground/validator/v10 v10.11.1 // indirect
 	github.com/goccy/go-json v0.10.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
