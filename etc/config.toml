@@ -18,6 +18,12 @@ database = "go_course"
 username = "root"
 password = "Murphy"
 
+[mongodb]
+endpoints = ["127.0.0.1:27017"]
+username = "keyauth"
+password = "Murphy"
+database = "keyauth"
+
 [log]
 level = "debug"
 path = "logs"
